@@ -192,24 +192,21 @@ wheels = [
 
 [[package]]
 name = "alibabacloud-credentials-api"
-version = "1.0.1"
-source = { registry = "http://yum.tbsite.net/aliyun-pypi/simple/" }
-sdist = { url = "http://yum.tbsite.net/aliyun-pypi/packages/alibabacloud-credentials-api/alibabacloud-credentials-api-1.0.1.tar.gz", hash = "sha256:045b74b4d6b340287f9d4647f855c0c61cbd691b7c0cfee77b8db6d3fce229cf" }
-wheels = [
-    { url = "http://yum.tbsite.net/aliyun-pypi/packages/alibabacloud-credentials-api/alibabacloud_credentials_api-1.0.1-py3-none-any.whl", hash = "sha256:cea6cf0a64c90176e812eec26e074063f8c0a38b0c7c00ef59c64e58105ee2e8" },
-]
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a0/87/1d7019d23891897cb076b2f7e3c81ab3c2ba91de3bb067196f675d60d34c/alibabacloud-credentials-api-1.0.0.tar.gz", hash = "sha256:8c340038d904f0218d7214a8f4088c31912bfcf279af2cbc7d9be4897a97dd2f", size = 2330, upload-time = "2025-01-13T05:53:04.931Z" }
 
 [[package]]
 name = "alibabacloud-eiam-developerapi20220225"
-version = "1.3.0"
+version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alibabacloud-tea-openapi" },
     { name = "darabonba-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4e/c8/a34d812340417a7a257533acbb881c738fbb8313e9e32a0c8129d7d7835b/alibabacloud_eiam_developerapi20220225-1.3.0.tar.gz", hash = "sha256:80f5db2339b34055b8716126dbf13aab0b49f789b4bb30f465e0817bd39b915b", size = 35570, upload-time = "2026-02-12T04:16:35.102Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/85/ef848cb121bd905bee70a214933a6f7eeb9325dc071320521fbe796c96ce/alibabacloud_eiam_developerapi20220225-1.6.0.tar.gz", hash = "sha256:54dfd303a9fd8ab01c0fca16254ce07061ac19d5778e5bd0fd64bccee43e6cbc", size = 44564, upload-time = "2026-03-30T19:00:50.313Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cd/73/90745a27da8efe1796da03a545a4ea61f9ed547a84645cb36706a8faf611/alibabacloud_eiam_developerapi20220225-1.3.0-py3-none-any.whl", hash = "sha256:bfc4d95e4ace640910f4ca6858bd6c35ff5117986c9e1879ff0cc974b7c6a621", size = 113339, upload-time = "2026-02-12T04:16:33.566Z" },
+    { url = "https://files.pythonhosted.org/packages/23/ac/fc10fa0b76e2e1d3cd07c9c13039f8e6ca085c1fac1a6941aa0c7dca0738/alibabacloud_eiam_developerapi20220225-1.6.0-py3-none-any.whl", hash = "sha256:e82e69a5accc17be0e8f64e76957da99dd1bcdb1f2af4280f4f59aac86d675f4", size = 147711, upload-time = "2026-03-30T19:00:49.209Z" },
 ]
 
 [[package]]
@@ -500,22 +497,34 @@ wheels = [
 
 [[package]]
 name = "cloud-idaas-core"
-version = "0.0.1"
-source = { registry = "http://yum.tbsite.net/aliyun-pypi/simple/" }
+version = "0.0.4b0"
+source = { directory = "../idaas-python-core-sdk" }
 dependencies = [
     { name = "cryptography" },
     { name = "pyjwt" },
     { name = "requests" },
     { name = "urllib3" },
 ]
-sdist = { url = "http://yum.tbsite.net/aliyun-pypi/packages/cloud-idaas-core/cloud_idaas_core-0.0.1.tar.gz", hash = "sha256:3995a4dda21dcec5773ef42afcc5701cf2c081fc8d389d4a2143f443e7bcfacd" }
-wheels = [
-    { url = "http://yum.tbsite.net/aliyun-pypi/packages/cloud-idaas-core/cloud_idaas_core-0.0.1-py3-none-any.whl", hash = "sha256:7016ac0ae0eafa1e9fde86e7c4c40e19cbc70e11b15a9cd9e51a41a8a3e52620" },
+
+[package.metadata]
+requires-dist = [
+    { name = "black", marker = "extra == 'dev'", specifier = ">=21.0.0" },
+    { name = "build", marker = "extra == 'dev'", specifier = ">=0.7.0" },
+    { name = "cryptography", specifier = ">=44.0.0" },
+    { name = "flake8", marker = "extra == 'dev'", specifier = ">=3.8.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=0.900" },
+    { name = "pyjwt", specifier = ">=2.8.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=2.10.0" },
+    { name = "requests", specifier = ">=2.31.0" },
+    { name = "twine", marker = "extra == 'dev'", specifier = ">=3.4.0" },
+    { name = "urllib3", specifier = ">=2.5.0" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "cloud-idaas-pam-client"
-version = "0.0.1b0"
+version = "0.0.2b0"
 source = { editable = "." }
 dependencies = [
     { name = "alibabacloud-eiam-developerapi20220225" },
@@ -532,8 +541,8 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alibabacloud-eiam-developerapi20220225", specifier = ">=1.3.0" },
-    { name = "cloud-idaas-core", specifier = ">=0.0.1a1" },
+    { name = "alibabacloud-eiam-developerapi20220225", specifier = ">=1.6.0" },
+    { name = "cloud-idaas-core", directory = "../idaas-python-core-sdk" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.0.0" },
     { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.10.0" },

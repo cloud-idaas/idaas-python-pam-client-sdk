@@ -7,9 +7,14 @@ covering initialization, endpoint processing, API key retrieval, and builder pat
 from unittest.mock import Mock, patch
 
 import pytest
-from cloud_idaas.core import ClientException, ConfigException, CredentialException, HttpConstants
 from Tea.exceptions import TeaException
 
+from cloud_idaas.core import (
+    ClientException,
+    ConfigException,
+    HttpConstants,
+    IDaaSUnexpectedException,
+)
 from cloud_idaas.pam_client.domain.pam_client_constants import PamClientConstants
 from cloud_idaas.pam_client.idaas_pam_client import IDaaSPamClient
 
@@ -361,14 +366,16 @@ class TestGetApiKey:
         mock_factory.get_idaas_credential_provider.return_value = mock_provider
 
         # Mock TeaException with 4xx error
-        tea_exception = TeaException({
-            "code": 400,
-            "data": {
-                "error": "invalid_request",
-                "error_description": "Invalid credential identifier",
-                "request_id": "req_123",
-            },
-        })
+        tea_exception = TeaException(
+            {
+                "code": 400,
+                "data": {
+                    "error": "invalid_request",
+                    "error_description": "Invalid credential identifier",
+                    "request_id": "req_123",
+                },
+            }
+        )
 
         mock_client_instance = Mock()
         mock_client_instance.obtain_credential_with_options.side_effect = tea_exception
@@ -413,8 +420,8 @@ class TestGetApiKey:
 
     @patch("cloud_idaas.pam_client.idaas_pam_client.IDaaSCredentialProviderFactory")
     @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
-    def test_get_api_key_raises_credential_exception_for_general_error(self, mock_client_class, mock_factory):
-        """Test get_api_key raises CredentialException for general errors"""
+    def test_get_api_key_raises_unexpected_exception_for_general_error(self, mock_client_class, mock_factory):
+        """Test get_api_key raises IDaaSUnexpectedException for general errors"""
         # Arrange
         mock_factory.get_developer_api_endpoint.return_value = "test.endpoint.com"
         mock_factory.get_idaas_instance_id.return_value = "test_instance"
@@ -430,7 +437,7 @@ class TestGetApiKey:
         client = IDaaSPamClient()
 
         # Act & Assert
-        with pytest.raises(CredentialException) as exc_info:
+        with pytest.raises(IDaaSUnexpectedException) as exc_info:
             client.get_api_key("test_credential_identifier")
         assert "Network error" in str(exc_info.value)
 
@@ -490,7 +497,7 @@ class TestIDaaSPamClientBuilder:
 
         # Act
         builder = IDaaSPamClient.builder()
-        builder.developerApiEndpoint("test.endpoint.com")
+        builder.developer_api_endpoint("test.endpoint.com")
         client = builder.build()
 
         # Assert
@@ -506,7 +513,7 @@ class TestIDaaSPamClientBuilder:
 
         # Act
         builder = IDaaSPamClient.builder()
-        builder.idaasInstanceId("custom_instance_id")
+        builder.idaas_instance_id("custom_instance_id")
         client = builder.build()
 
         # Assert
@@ -523,7 +530,7 @@ class TestIDaaSPamClientBuilder:
 
         # Act
         builder = IDaaSPamClient.builder()
-        builder.credentialProvider(mock_provider)
+        builder.credential_provider(mock_provider)
         client = builder.build()
 
         # Assert
@@ -539,9 +546,9 @@ class TestIDaaSPamClientBuilder:
         # Act
         builder = (
             IDaaSPamClient.builder()
-            .developerApiEndpoint("test.endpoint.com")
-            .idaasInstanceId("test_instance")
-            .credentialProvider(mock_provider)
+            .developer_api_endpoint("test.endpoint.com")
+            .idaas_instance_id("test_instance")
+            .credential_provider(mock_provider)
         )
         client = builder.build()
 

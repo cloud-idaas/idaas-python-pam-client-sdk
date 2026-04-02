@@ -1,4 +1,10 @@
-from cloud_idaas.pam_client.domain import PamClientConstants
+from cloud_idaas.pam_client.domain import (
+    AuthenticationToken,
+    JwtContent,
+    JwtTokenResponse,
+    NextTokenPageableResponse,
+    PamClientConstants,
+)
 from cloud_idaas.pam_client.idaas_pam_client import IDaaSPamClient
 
 # Version management - keep at the end, skip import sorting
@@ -16,4 +22,8 @@ __author__ = "AlibabaCloud IDaaS Team"
 __all__ = [
     "IDaaSPamClient",
     "PamClientConstants",
+    "JwtContent",
+    "JwtTokenResponse",
+    "AuthenticationToken",
+    "NextTokenPageableResponse",
 ]
