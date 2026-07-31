@@ -3,6 +3,10 @@ from cloud_idaas.pam_client.domain import (
     JwtContent,
     JwtTokenResponse,
     NextTokenPageableResponse,
+    OAuthAccessTokenContent,
+    OAuthAuthenticationTokenResponse,
+    OAuthAuthorizationSession,
+    OAuthAuthorizationSessionResponse,
     PamClientConstants,
 )
 from cloud_idaas.pam_client.idaas_pam_client import IDaaSPamClient
@@ -26,4 +30,8 @@ __all__ = [
     "JwtTokenResponse",
     "AuthenticationToken",
     "NextTokenPageableResponse",
+    "OAuthAccessTokenContent",
+    "OAuthAuthorizationSession",
+    "OAuthAuthenticationTokenResponse",
+    "OAuthAuthorizationSessionResponse",
 ]

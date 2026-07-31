@@ -329,8 +329,8 @@ class TestGetApiKey:
 
     @patch("cloud_idaas.pam_client.idaas_pam_client.IDaaSCredentialProviderFactory")
     @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
-    def test_get_api_key_returns_none_for_non_200_status(self, mock_client_class, mock_factory):
-        """Test get_api_key returns None for non-200 status code"""
+    def test_get_api_key_raises_unexpected_exception_for_non_200_status(self, mock_client_class, mock_factory):
+        """Test get_api_key raises IDaaSUnexpectedException for non-200 status code"""
         # Arrange
         mock_factory.get_developer_api_endpoint.return_value = "test.endpoint.com"
         mock_factory.get_idaas_instance_id.return_value = "test_instance"
@@ -348,11 +348,10 @@ class TestGetApiKey:
 
         client = IDaaSPamClient()
 
-        # Act
-        api_key = client.get_api_key("test_credential_identifier")
-
-        # Assert
-        assert api_key is None
+        # Act & Assert
+        with pytest.raises(IDaaSUnexpectedException) as exc_info:
+            client.get_api_key("test_credential_identifier")
+        assert "status code: 404" in str(exc_info.value)
 
     @patch("cloud_idaas.pam_client.idaas_pam_client.IDaaSCredentialProviderFactory")
     @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
@@ -572,3 +571,425 @@ class TestIDaaSPamClientBuilder:
 
         # Assert
         assert isinstance(client, IDaaSPamClient)
+
+
+def _make_oauth_client(mock_client_class):
+    """Build an IDaaSPamClient with a mocked Tea Client and a fixed bearer token."""
+    mock_provider = Mock()
+    mock_provider.get_bearer_token.return_value = "test_bearer_token"
+    mock_client_instance = mock_client_class.return_value
+    client = IDaaSPamClient("test.endpoint.com", "test_instance", mock_provider)
+    return client, mock_client_instance
+
+
+def _mock_fetch_response(has_token=False, has_session=False):
+    response = Mock()
+    response.status_code = 200
+    body = Mock()
+    body.oauth_access_token_content = None
+    body.oauth_authorization_session = None
+    if has_token:
+        token_content = Mock()
+        token_content.access_token_value = "at_value"
+        token_content.token_type = "Bearer"
+        token_content.scope = "scope1"
+        body.oauth_access_token_content = token_content
+    if has_session:
+        session = Mock()
+        session.session_id = "sid"
+        session.session_uri = "urn:ietf:params:oauth:request_uri:sid"
+        session.authorization_url = "https://auth.example.com/authorize"
+        session.session_status = "pending"
+        body.oauth_authorization_session = session
+    response.body = body
+    return response
+
+
+def _mock_session_response(status, **kwargs):
+    response = Mock()
+    response.status_code = 200
+    body = Mock()
+    body.session_status = status
+    body.authorization_url = kwargs.get("authorization_url")
+    body.authentication_token_id = kwargs.get("authentication_token_id")
+    body.error_code = kwargs.get("error_code")
+    body.error_description = kwargs.get("error_description")
+    response.body = body
+    return response
+
+
+class TestFetchOAuthAuthenticationTokenV2:
+    """Test suite for fetch_oauth_authentication_token_v2"""
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_m2m_returns_access_token_content(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_token=True
+        )
+
+        # Act
+        result = client.fetch_oauth_authentication_token_v2(
+            "provider-1", PamClientConstants.OAUTH_AUTHORIZATION_FLOW_M2M
+        )
+
+        # Assert
+        assert result.has_oauth_access_token_content() is True
+        assert result.has_oauth_authorization_session() is False
+        assert result.oauth_access_token_content.access_token_value == "at_value"
+        assert result.oauth_access_token_content.token_type == "Bearer"
+        assert result.oauth_access_token_content.scope == "scope1"
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_user_federation_unauthorized_returns_session(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_session=True
+        )
+
+        # Act
+        result = client.fetch_oauth_authentication_token_v2(
+            "provider-1", PamClientConstants.OAUTH_AUTHORIZATION_FLOW_USER_FEDERATION
+        )
+
+        # Assert
+        assert result.has_oauth_authorization_session() is True
+        assert result.has_oauth_access_token_content() is False
+        assert result.oauth_authorization_session.session_status == "pending"
+        assert result.oauth_authorization_session.authorization_url == "https://auth.example.com/authorize"
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_user_federation_authorized_returns_token(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_token=True
+        )
+
+        # Act
+        result = client.fetch_oauth_authentication_token_v2(
+            "provider-1", PamClientConstants.OAUTH_AUTHORIZATION_FLOW_USER_FEDERATION
+        )
+
+        # Assert
+        assert result.has_oauth_access_token_content() is True
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_m2m_but_session_returned_raises_client_exception(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_session=True
+        )
+
+        # Act & Assert
+        with pytest.raises(ClientException) as exc_info:
+            client.fetch_oauth_authentication_token_v2("provider-1", PamClientConstants.OAUTH_AUTHORIZATION_FLOW_M2M)
+        assert "authorization_flow_mismatch" in str(exc_info.value)
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_invalid_flow_raises_client_exception(self, mock_client_class):
+        # Arrange
+        client, _ = _make_oauth_client(mock_client_class)
+
+        # Act & Assert
+        with pytest.raises(ClientException) as exc_info:
+            client.fetch_oauth_authentication_token_v2("provider-1", "bad_flow")
+        assert "invalid_authorization_flow" in str(exc_info.value)
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_force_authentication_and_custom_parameters_written_to_request(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_token=True
+        )
+
+        # Act
+        client.fetch_oauth_authentication_token_v2(
+            "provider-1",
+            PamClientConstants.OAUTH_AUTHORIZATION_FLOW_USER_FEDERATION,
+            scope="s1 s2",
+            force_authentication=True,
+            custom_parameters={"access_type": "offline"},
+        )
+
+        # Assert
+        call_args = mock_client_instance.fetch_oauth_authentication_token_with_options.call_args
+        request = call_args[0][1]
+        headers = call_args[0][2]
+        assert request.force_authentication is True
+        assert request.custom_parameters == {"access_type": "offline"}
+        assert request.scope == "s1 s2"
+        expected_auth = f"{HttpConstants.BEARER}{HttpConstants.SPACE}test_bearer_token"
+        assert headers.authorization == expected_auth
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_raises_client_exception_for_4xx(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.side_effect = TeaException(
+            {"code": 400, "data": {"error": "credential_provider_not_enabled", "request_id": "r1"}}
+        )
+
+        # Act & Assert
+        with pytest.raises(ClientException) as exc_info:
+            client.fetch_oauth_authentication_token_v2(
+                "provider-1", PamClientConstants.OAUTH_AUTHORIZATION_FLOW_USER_FEDERATION
+            )
+        assert "credential_provider_not_enabled" in str(exc_info.value)
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_raises_unexpected_exception_for_general_error(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.side_effect = Exception("Network error")
+
+        # Act & Assert
+        with pytest.raises(IDaaSUnexpectedException) as exc_info:
+            client.fetch_oauth_authentication_token_v2(
+                "provider-1", PamClientConstants.OAUTH_AUTHORIZATION_FLOW_USER_FEDERATION
+            )
+        assert "Network error" in str(exc_info.value)
+
+
+class TestGetOAuthAuthorizationSession:
+    """Test suite for get_oauth_authorization_session"""
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_pending_returns_authorization_url(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.get_oauth_authorization_session_with_options.return_value = _mock_session_response(
+            "pending", authorization_url="https://auth.example.com/authorize"
+        )
+
+        # Act
+        result = client.get_oauth_authorization_session("urn:sid")
+
+        # Assert
+        assert result.session_status == "pending"
+        assert result.authorization_url == "https://auth.example.com/authorize"
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_completed_returns_authentication_token_id(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.get_oauth_authorization_session_with_options.return_value = _mock_session_response(
+            "completed", authentication_token_id="tok-1"
+        )
+
+        # Act
+        result = client.get_oauth_authorization_session("urn:sid")
+
+        # Assert
+        assert result.session_status == "completed"
+        assert result.authentication_token_id == "tok-1"
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_failed_returns_error_info(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.get_oauth_authorization_session_with_options.return_value = _mock_session_response(
+            "failed", error_code="access_denied", error_description="user denied"
+        )
+
+        # Act
+        result = client.get_oauth_authorization_session("urn:sid")
+
+        # Assert
+        assert result.session_status == "failed"
+        assert result.error_code == "access_denied"
+        assert result.error_description == "user denied"
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_not_found_raises_client_exception(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.get_oauth_authorization_session_with_options.side_effect = TeaException(
+            {"code": 404, "data": {"error": "oauth_session_not_found", "request_id": "r1"}}
+        )
+
+        # Act & Assert
+        with pytest.raises(ClientException) as exc_info:
+            client.get_oauth_authorization_session("urn:missing")
+        assert "oauth_session_not_found" in str(exc_info.value)
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_sets_bearer_authorization_header(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.get_oauth_authorization_session_with_options.return_value = _mock_session_response(
+            "pending"
+        )
+
+        # Act
+        client.get_oauth_authorization_session("urn:sid")
+
+        # Assert
+        call_args = mock_client_instance.get_oauth_authorization_session_with_options.call_args
+        headers = call_args[0][2]
+        expected_auth = f"{HttpConstants.BEARER}{HttpConstants.SPACE}test_bearer_token"
+        assert headers.authorization == expected_auth
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_raises_unexpected_exception_for_general_error(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.get_oauth_authorization_session_with_options.side_effect = Exception("Network error")
+
+        # Act & Assert
+        with pytest.raises(IDaaSUnexpectedException) as exc_info:
+            client.get_oauth_authorization_session("urn:sid")
+        assert "Network error" in str(exc_info.value)
+
+
+class TestPollOAuthAuthenticationToken:
+    """Test suite for poll_oauth_authentication_token"""
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_token_available_returns_without_callback_or_polling(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_token=True
+        )
+        callback = Mock()
+
+        # Act
+        result = client.poll_oauth_authentication_token("provider-1", callback)
+
+        # Assert
+        assert result.has_oauth_access_token_content() is True
+        callback.assert_not_called()
+        mock_client_instance.get_oauth_authorization_session_with_options.assert_not_called()
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.time")
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_authorize_then_poll_until_completed(self, mock_client_class, mock_time):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_time.monotonic.side_effect = [0, 1, 2, 3, 4]
+        mock_client_instance.fetch_oauth_authentication_token_with_options.side_effect = [
+            _mock_fetch_response(has_session=True),
+            _mock_fetch_response(has_token=True),
+        ]
+        mock_client_instance.get_oauth_authorization_session_with_options.side_effect = [
+            _mock_session_response("pending"),
+            _mock_session_response("completed", authentication_token_id="tok-1"),
+        ]
+        callback = Mock()
+
+        # Act
+        result = client.poll_oauth_authentication_token("provider-1", callback)
+
+        # Assert
+        callback.assert_called_once_with("https://auth.example.com/authorize")
+        assert result.has_oauth_access_token_content() is True
+        # second fetch must not carry force_authentication (Java-aligned: no options)
+        fetch_calls = mock_client_instance.fetch_oauth_authentication_token_with_options.call_args_list
+        second_fetch_request = fetch_calls[1][0][1]
+        assert second_fetch_request.force_authentication is None
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.time")
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_session_failed_raises_client_exception(self, mock_client_class, mock_time):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_time.monotonic.side_effect = [0, 1, 2]
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_session=True
+        )
+        mock_client_instance.get_oauth_authorization_session_with_options.return_value = _mock_session_response(
+            "failed", error_code="access_denied", error_description="user denied"
+        )
+
+        # Act & Assert
+        with pytest.raises(ClientException) as exc_info:
+            client.poll_oauth_authentication_token("provider-1", Mock())
+        assert "user denied" in str(exc_info.value)
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.time")
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_session_expired_raises_client_exception(self, mock_client_class, mock_time):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_time.monotonic.side_effect = [0, 1, 2]
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_session=True
+        )
+        mock_client_instance.get_oauth_authorization_session_with_options.return_value = _mock_session_response(
+            "expired"
+        )
+
+        # Act & Assert
+        with pytest.raises(ClientException) as exc_info:
+            client.poll_oauth_authentication_token("provider-1", Mock())
+        assert "expired" in str(exc_info.value)
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.time")
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_polling_retries_exhausted_raises_timeout(self, mock_client_class, mock_time):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_time.monotonic.side_effect = [0, 1, 2, 3, 4]
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_session=True
+        )
+        mock_client_instance.get_oauth_authorization_session_with_options.return_value = _mock_session_response(
+            "pending"
+        )
+
+        # Act & Assert
+        with pytest.raises(ClientException) as exc_info:
+            client.poll_oauth_authentication_token("provider-1", Mock(), max_polling_retries=2)
+        assert "timed out" in str(exc_info.value).lower()
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.time")
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_hard_timeout_stops_before_retries(self, mock_client_class, mock_time):
+        # Arrange: deadline = 0 + 180; first loop check sees 200 >= 180
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_time.monotonic.side_effect = [0, 200]
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_session=True
+        )
+
+        # Act & Assert
+        with pytest.raises(ClientException) as exc_info:
+            client.poll_oauth_authentication_token("provider-1", Mock(), max_polling_retries=60)
+        assert "timed out" in str(exc_info.value).lower()
+        mock_client_instance.get_oauth_authorization_session_with_options.assert_not_called()
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_callback_exception_propagates(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_session=True
+        )
+        callback = Mock(side_effect=ValueError("boom"))
+
+        # Act & Assert
+        with pytest.raises(ValueError) as exc_info:
+            client.poll_oauth_authentication_token("provider-1", callback)
+        assert "boom" in str(exc_info.value)
+
+
+class TestFetchOAuthAuthenticationTokenDeprecation:
+    """Test suite for the deprecated fetch_oauth_authentication_token"""
+
+    @patch("cloud_idaas.pam_client.idaas_pam_client.Client")
+    def test_emits_deprecation_warning_and_returns_token(self, mock_client_class):
+        # Arrange
+        client, mock_client_instance = _make_oauth_client(mock_client_class)
+        mock_client_instance.fetch_oauth_authentication_token_with_options.return_value = _mock_fetch_response(
+            has_token=True
+        )
+
+        # Act & Assert
+        with pytest.warns(DeprecationWarning):
+            token = client.fetch_oauth_authentication_token("provider-1")
+        assert token == "at_value"

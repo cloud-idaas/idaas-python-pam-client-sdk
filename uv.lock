@@ -198,15 +198,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/a0/87/1d7019d23891897cb
 
 [[package]]
 name = "alibabacloud-eiam-developerapi20220225"
-version = "1.6.0"
+version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alibabacloud-tea-openapi" },
     { name = "darabonba-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/da/85/ef848cb121bd905bee70a214933a6f7eeb9325dc071320521fbe796c96ce/alibabacloud_eiam_developerapi20220225-1.6.0.tar.gz", hash = "sha256:54dfd303a9fd8ab01c0fca16254ce07061ac19d5778e5bd0fd64bccee43e6cbc", size = 44564, upload-time = "2026-03-30T19:00:50.313Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/f5/10ea9f575ada2ec8c3fbdeaac77b47cb8d9cc68a87e21d4e74e965ff67d4/alibabacloud_eiam_developerapi20220225-1.8.0.tar.gz", hash = "sha256:b8a2b3b306ac643c32d9e94a8afdda662db9e7b5268009fa8cec02325811e55e", size = 52214, upload-time = "2026-07-30T07:14:36.101Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/23/ac/fc10fa0b76e2e1d3cd07c9c13039f8e6ca085c1fac1a6941aa0c7dca0738/alibabacloud_eiam_developerapi20220225-1.6.0-py3-none-any.whl", hash = "sha256:e82e69a5accc17be0e8f64e76957da99dd1bcdb1f2af4280f4f59aac86d675f4", size = 147711, upload-time = "2026-03-30T19:00:49.209Z" },
+    { url = "https://files.pythonhosted.org/packages/15/df/820c531b1bfb25cc619b59261015dceb798b47837e761118cd126afe115b/alibabacloud_eiam_developerapi20220225-1.8.0-py3-none-any.whl", hash = "sha256:2acd8cbb3bab7ee84c35a7d0df2d89771ff1f022d9d1ff761ca52b976b8ff0ad", size = 167268, upload-time = "2026-07-30T07:14:35.052Z" },
 ]
 
 [[package]]
@@ -230,7 +230,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/9a/7d/b22cb9a0d4f396ee0
 
 [[package]]
 name = "alibabacloud-tea-openapi"
-version = "0.4.3"
+version = "0.4.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alibabacloud-credentials" },
@@ -239,9 +239,9 @@ dependencies = [
     { name = "cryptography" },
     { name = "darabonba-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/91/4f/b5288eea8f4d4b032c9a8f2cd1d926d5017977d10b874956f31e5343f299/alibabacloud_tea_openapi-0.4.3.tar.gz", hash = "sha256:12aef036ed993637b6f141abbd1de9d6199d5516f4a901588bb65d6a3768d41b", size = 21864, upload-time = "2026-01-15T07:55:16.744Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/73/fb0c4d44759791ecdf269fc715c1e810fa1aba3981bfaaf8a01f61899296/alibabacloud_tea_openapi-0.4.5.tar.gz", hash = "sha256:75fa1f4360a46e41f5bf5f8d4917e52efb6f64885839bc1328c35590670c97b9", size = 26616, upload-time = "2026-07-14T13:15:39.364Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/37/48ee5468ecad19c6d44cf3b9629d77078e836ee3ec760f0366247f307b7c/alibabacloud_tea_openapi-0.4.3-py3-none-any.whl", hash = "sha256:d0b3a373b760ef6278b25fc128c73284301e07888977bf97519e7636d47bdf0a", size = 26159, upload-time = "2026-01-15T07:55:15.72Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/ec/6b368a10e9c2e8b1b394c69b96ac213ae66e8c4895e0baa1ffaf7178fd32/alibabacloud_tea_openapi-0.4.5-py3-none-any.whl", hash = "sha256:338979095c7beda80a5b413c31262892cafdc12069dde4ce4fc2e4f7ce0fc609", size = 33333, upload-time = "2026-07-14T13:15:38.365Z" },
 ]
 
 [[package]]
@@ -498,33 +498,21 @@ wheels = [
 [[package]]
 name = "cloud-idaas-core"
 version = "0.0.4b0"
-source = { directory = "../idaas-python-core-sdk" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "pyjwt" },
     { name = "requests" },
     { name = "urllib3" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "black", marker = "extra == 'dev'", specifier = ">=21.0.0" },
-    { name = "build", marker = "extra == 'dev'", specifier = ">=0.7.0" },
-    { name = "cryptography", specifier = ">=44.0.0" },
-    { name = "flake8", marker = "extra == 'dev'", specifier = ">=3.8.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=0.900" },
-    { name = "pyjwt", specifier = ">=2.8.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=2.10.0" },
-    { name = "requests", specifier = ">=2.31.0" },
-    { name = "twine", marker = "extra == 'dev'", specifier = ">=3.4.0" },
-    { name = "urllib3", specifier = ">=2.5.0" },
+sdist = { url = "https://files.pythonhosted.org/packages/2b/a0/c54099252135a45ed3bc5e47b32ff5ac13324b2e7cff503112209495a827/cloud_idaas_core-0.0.4b0.tar.gz", hash = "sha256:63f2dbae5c1ce2765be134de8490cf9ea3af81d71ecca991e6aeec624794acb6", size = 54432, upload-time = "2026-04-02T11:21:06.023Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/98/a3/05dddd8627bec32aa9fd605d13587941dfb00e079541d0e5cb024e725862/cloud_idaas_core-0.0.4b0-py3-none-any.whl", hash = "sha256:f52332ec7382a28457421815f78fab69648eded1775ca134bb029a4b26aeb33f", size = 81805, upload-time = "2026-04-02T11:21:04.912Z" },
 ]
-provides-extras = ["dev"]
 
 [[package]]
 name = "cloud-idaas-pam-client"
-version = "0.0.2b0"
+version = "0.0.3b0"
 source = { editable = "." }
 dependencies = [
     { name = "alibabacloud-eiam-developerapi20220225" },
@@ -541,8 +529,8 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alibabacloud-eiam-developerapi20220225", specifier = ">=1.6.0" },
-    { name = "cloud-idaas-core", directory = "../idaas-python-core-sdk" },
+    { name = "alibabacloud-eiam-developerapi20220225", specifier = ">=1.8.0" },
+    { name = "cloud-idaas-core", specifier = ">=0.0.4b0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.0.0" },
     { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.10.0" },
@@ -847,15 +835,17 @@ wheels = [
 
 [[package]]
 name = "darabonba-core"
-version = "1.0.5"
+version = "1.0.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "alibabacloud-tea" },
     { name = "requests" },
+    { name = "websocket-client" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/83/9321ccdb7a800c2cb97d8fa34bead5f20141f27f804594fd1fd815c4cd07/darabonba_core-1.0.8.tar.gz", hash = "sha256:f1661960b368e342d3d36434be82d264b70a01c49e843921d8a4dacd217376ae", size = 27604, upload-time = "2026-07-13T02:07:34.093Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/66/d3/a7daaee544c904548e665829b51a9fa2572acb82c73ad787a8ff90273002/darabonba_core-1.0.5-py3-none-any.whl", hash = "sha256:671ab8dbc4edc2a8f88013da71646839bb8914f1259efc069353243ef52ea27c", size = 24580, upload-time = "2025-12-12T07:53:59.494Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/88/38800ca22f39a31fdb75c7b2867c61d3af5e2792cee0b72942a639c88a79/darabonba_core-1.0.8-py3-none-any.whl", hash = "sha256:ac093fdd40f88f2f9dfbbbfd7bc143495a3cb031f35b397c98d24edfa6b69483", size = 30957, upload-time = "2026-07-13T02:07:33.138Z" },
 ]
 
 [[package]]
@@ -1562,6 +1552,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c7/24/5f1b3bdffd70275f6661c76461e25f024d5a38a46f04aaca912426a2b1d3/urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed", size = 435556, upload-time = "2026-01-07T16:24:43.925Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4", size = 131584, upload-time = "2026-01-07T16:24:42.685Z" },
+]
+
+[[package]]
+name = "websocket-client"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/41/aa4bf9664e4cda14c3b39865b12251e8e7d239f4cd0e3cc1b6c2ccde25c1/websocket_client-1.9.0.tar.gz", hash = "sha256:9e813624b6eb619999a97dc7958469217c3176312b3a16a4bd1bc7e08a46ec98", size = 70576, upload-time = "2025-10-07T21:16:36.495Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/34/db/b10e48aa8fff7407e67470363eac595018441cf32d5e1001567a7aeba5d2/websocket_client-1.9.0-py3-none-any.whl", hash = "sha256:af248a825037ef591efbf6ed20cc5faa03d3b47b9e5a2230a529eeee1c1fc3ef", size = 82616, upload-time = "2025-10-07T21:16:34.951Z" },
 ]
 
 [[package]]

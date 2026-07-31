@@ -11,6 +11,7 @@ Python SDK for IDaaS (Identity as a Service) PAM (Privileged Access Management) 
 ## Features
 
 - **Credential Management**: Support for retrieving API Keys, OAuth authentication tokens, JWT authentication tokens, and other credentials
+- **OAuth 2LO / 3LO**: Support for both M2M (client credentials) and user federation (authorization code) flows, including an end-to-end 3LO authorization helper
 - **Authentication Token Lifecycle Management**: Support for generating, querying, revoking, reinstating, and validating authentication tokens
 
 ## Requirements
@@ -18,7 +19,7 @@ Python SDK for IDaaS (Identity as a Service) PAM (Privileged Access Management) 
 - Python >= 3.9
 - Dependencies:
   - cloud-idaas-core >= 0.0.4b0
-  - alibabacloud-eiam-developerapi20220225 >= 1.6.0
+  - alibabacloud-eiam-developerapi20220225 >= 1.8.0
 
 ## Installation
 
@@ -98,6 +99,8 @@ Response:
 
 ### fetch_oauth_authentication_token
 
+> **Deprecated**: Use [fetch_oauth_authentication_token_v2](#fetch_oauth_authentication_token_v2) instead. This method only supports 2LO and returns just the access token string; its signature and return type are kept unchanged for backward compatibility.
+
 Purpose: Retrieve a valid OAuth authentication token.
 
 Request Parameters:
@@ -112,6 +115,104 @@ Response:
 | **Parameter** | **Type** | **Always Returned** | **Description** |
 | --- | --- | --- | --- |
 | access_token_value | str | Yes | Corresponds to the access_token in the OAuth AccessToken response.<br>* Note: Contains sensitive information. |
+
+### fetch_oauth_authentication_token_v2
+
+Purpose: Retrieve a valid OAuth authentication token, covering both the 2LO (`m2m`) and 3LO (`user_federation`) flows, and returning a rich response object.
+> **Note**: The 3LO scenario requires a user-auth Access Token.
+
+Request Parameters:
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| credential_provider_identifier | str | Yes | The business identifier of the credential provider. |
+| authorization_flow | str | Yes | The OAuth authorization flow type.<br>* Values: `PamClientConstants.OAUTH_AUTHORIZATION_FLOW_M2M` (`m2m`, i.e. 2LO / client_credentials), `PamClientConstants.OAUTH_AUTHORIZATION_FLOW_USER_FEDERATION` (`user_federation`, i.e. 3LO / authorization_code). |
+| scope | str | No | The scope in OAuth protocol. Multiple scopes should be separated by spaces. |
+| force_authentication | bool | No | Whether to force re-authorization, ignoring any existing valid token. Defaults to `false`. |
+| custom_parameters | Dict[str, str] | No | Custom key-value pairs appended to the query parameters of the OAuth authorization URL.<br>* For example, Google's `access_type=offline` and `prompt=consent`. |
+
+Response: `OAuthAuthenticationTokenResponse`
+
+> `oauth_access_token_content` and `oauth_authorization_session` are **mutually exclusive** and never present at the same time. Use `has_oauth_access_token_content()` and `has_oauth_authorization_session()` to determine the current scenario.
+
+| **Parameter** | **Type** | **Always Returned** | **Description** |
+| --- | --- | --- | --- |
+| instance_id | str | No | The IDaaS instance ID. |
+| authentication_token_id | str | No | The authentication token ID. |
+| credential_provider_id | str | No | The credential provider ID. |
+| authentication_token_type | str | No | The authentication token type, with the value `oauth_access_token`. |
+| revoked | bool | No | Whether the authentication token has been revoked. |
+| creator_type / creator_id | str | No | The creator type / ID of the authentication token. |
+| consumer_type / consumer_id | str | No | The consumer type / ID of the authentication token. |
+| create_time / update_time / expiration_time | int | No | Creation / update / expiration time, as a Unix timestamp in milliseconds. |
+| oauth_access_token_content | object | No | **Scenario 1: the token is already available**. |
+| └ access_token_value | str | Yes | The access_token value.<br>* Note: Contains sensitive information. |
+| └ token_type | str | No | The token_type, usually `Bearer`. |
+| └ scope | str | No | The authorization scope. |
+| oauth_authorization_session | object | No | **Scenario 2: user authorization is required** (3LO only). |
+| └ session_id | str | Yes | The authorization session ID. |
+| └ session_uri | str | Yes | The authorization session URI, used to query the session status later. |
+| └ authorization_url | str | Yes | The URL that guides the user through authorization; pass it to the end user to open in a browser. |
+| └ session_status | str | Yes | The authorization session status, which is `pending` at this point. |
+
+### get_oauth_authorization_session
+
+Purpose: Query the current status of an OAuth authorization session, used to orchestrate polling yourself in the 3LO atomic mode.
+
+> **Note**: This API requires the Bearer Token to be a user-auth Access Token.
+
+Request Parameters:
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| session_uri | str | Yes | The authorization session URI, taken from `oauth_authorization_session.session_uri` returned by `fetch_oauth_authentication_token_v2`. |
+
+Response: `OAuthAuthorizationSessionResponse`
+
+| **Parameter** | **Type** | **Always Returned** | **Description** |
+| --- | --- | --- | --- |
+| instance_id | str | Yes | The IDaaS instance ID. |
+| session_id | str | Yes | The authorization session ID. |
+| session_uri | str | Yes | The authorization session URI. |
+| session_status | str | Yes | The session status.<br>* Enum values: `pending` (waiting for user authorization), `callback_received` (authorization code received, exchanging the token), `completed` (authorization completed), `failed` (authorization failed), `expired` (session expired).<br>* Corresponding constants: `PamClientConstants.SESSION_STATUS_*`. |
+| credential_provider_identifier | str | Yes | The business identifier of the credential provider. |
+| consumer_type / consumer_id | str | Yes | The consumer type / ID. |
+| creator_type / creator_id | str | Yes | The creator type / ID. |
+| authorization_url | str | No | The authorization URL, returned when `session_status=pending`. |
+| expiration_time | int | Yes | The session expiration time, as a Unix timestamp in milliseconds. |
+| authentication_token_id | str | No | The associated authentication token ID, returned when `session_status=completed`. |
+| error_code | str | No | The error code, returned when `session_status=failed`. |
+| error_description | str | No | The error description, returned when `session_status=failed`. |
+
+### poll_oauth_authentication_token
+
+Purpose: The end-to-end 3LO method. It automatically performs the full flow internally: initiate authorization -> notify the authorization URL via callback -> poll and wait -> retrieve the token. Suitable for Agent / CLI scenarios without complex UI interaction.
+> **Note**: This API requires the Bearer Token to be a user-auth Access Token.
+>**Blocking behavior**: This is a synchronous, blocking method that blocks the calling thread while polling (up to 180 seconds). If you need non-blocking behavior, use the atomic methods to orchestrate the flow yourself, or call this method in a separate thread.
+
+Request Parameters:
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| credential_provider_identifier | str | Yes | The business identifier of the credential provider. |
+| on_authorization_url | Callable[[str], None] | Yes | The authorization URL callback. When user authorization is required, the SDK invokes it once with the `authorization_url`.<br>* The caller decides how to deliver the URL to the end user (print to console, return to a frontend, open the system browser, etc.).<br>* Exceptions raised inside the callback are **propagated as-is** and are not wrapped by the SDK. |
+| scope | str | No | The scope in OAuth protocol. Multiple scopes should be separated by spaces. |
+| force_authentication | bool | No | Whether to force re-authorization, ignoring any existing valid token. Defaults to `false`. |
+| custom_parameters | Dict[str, str] | No | Custom key-value pairs appended to the query parameters of the OAuth authorization URL. |
+| max_polling_retries | int | No | The maximum number of polls, defaulting to 60.<br>* The polling interval is fixed at 3 seconds (not configurable).<br>* There is an internal hard timeout of 180 seconds: even if `polling interval x max retries` exceeds 180 seconds, polling stops after 180 seconds and a timeout exception is raised. |
+
+Response: `OAuthAuthenticationTokenResponse` (same structure as `fetch_oauth_authentication_token_v2`)
+
+> On success, the result **always contains** `oauth_access_token_content` and **never contains** `oauth_authorization_session` (the authorization logic has already been handled inside the method).
+
+Exceptions:
+
+| **Scenario** | **Exception** | **Error Code** |
+| --- | --- | --- |
+| Authorization session status is `failed` | `ClientException` | The server `error_code` is propagated (falls back to `authorization_failed` when empty) |
+| Authorization session status is `expired` | `ClientException` | `authorization_session_expired` |
+| Polling timed out / retries exhausted | `ClientException` | `polling_timeout` |
+| Exception inside the callback | The original exception | Not wrapped, propagated as-is |
 
 ### generate_jwt_authentication_token
 
@@ -382,6 +483,160 @@ token = pam_client.fetch_oauth_authentication_token("your-credential-identifier"
 # )
 
 print(f"OAuth Token: {token}")
+```
+
+### Fetch OAuth Authentication Token (2LO, recommended)
+
+Use `fetch_oauth_authentication_token_v2` and explicitly specify the `m2m` flow.
+
+```python
+from cloud_idaas.core import IDaaSCredentialProviderFactory
+from cloud_idaas.pam_client import IDaaSPamClient, PamClientConstants
+
+# Initialize (automatically loads configuration file)
+IDaaSCredentialProviderFactory.init()
+
+# Create PAM Client
+pam_client = IDaaSPamClient()
+
+# Fetch OAuth authentication token (2LO / M2M)
+response = pam_client.fetch_oauth_authentication_token_v2(
+    credential_provider_identifier="your-credential-provider-identifier",
+    authorization_flow=PamClientConstants.OAUTH_AUTHORIZATION_FLOW_M2M,
+)
+
+if response and response.has_oauth_access_token_content():
+    print(f"Access Token: {response.oauth_access_token_content.access_token_value}")
+    print(f"Token Type: {response.oauth_access_token_content.token_type}")
+    print(f"Scope: {response.oauth_access_token_content.scope}")
+```
+
+### OAuth 3LO Authorization (end-to-end mode, recommended)
+
+`poll_oauth_authentication_token` encapsulates the full 3LO flow: initiate authorization -> notify the authorization URL via callback -> poll and wait for the user to authorize -> retrieve the token. Suitable for Agent / CLI scenarios.
+
+> The 3LO session APIs require a user-auth token, so the PAM client below is built via **token exchange**.
+
+```python
+from cloud_idaas.core import IDaaSCredentialProviderFactory
+from cloud_idaas.core.constants import OAuth2Constants
+from cloud_idaas.core.credential import IDaaSCredential
+from cloud_idaas.core.implementation import StaticIDaaSCredentialProvider
+from cloud_idaas.core.provider import IDaaSCredentialProvider, IDaaSTokenExchangeCredentialProvider
+from cloud_idaas.pam_client import IDaaSPamClient
+
+# Initialize (automatically loads configuration file)
+IDaaSCredentialProviderFactory.init()
+
+# Obtain a user-auth credential via token exchange
+token_exchange_provider: IDaaSTokenExchangeCredentialProvider = (
+    IDaaSCredentialProviderFactory.get_idaas_token_exchange_credential_provider()
+)
+credential: IDaaSCredential = token_exchange_provider.get_credential(
+    subject_token="your-subject-token",
+    requested_token_type=OAuth2Constants.ACCESS_TOKEN_TYPE_VALUE,
+    subject_token_type=OAuth2Constants.ACCESS_TOKEN_TYPE_VALUE,
+)
+credential_provider: IDaaSCredentialProvider = (
+    StaticIDaaSCredentialProvider.builder().credential(credential).build()
+)
+pam_client: IDaaSPamClient = (
+    IDaaSPamClient.builder().credential_provider(credential_provider).build()
+)
+
+
+# Authorization URL callback: the caller decides how to present it to the end user
+def on_authorization_url(authorization_url: str):
+    print(f"Please open the following URL in a browser to authorize:\n{authorization_url}")
+
+
+# Retrieve the OAuth authentication token end-to-end (polling is handled internally)
+response = pam_client.poll_oauth_authentication_token(
+    credential_provider_identifier="your-oauth-3lo-credential-provider-identifier",
+    on_authorization_url=on_authorization_url,
+)
+# With optional parameters
+# response = pam_client.poll_oauth_authentication_token(
+#     credential_provider_identifier="your-oauth-3lo-credential-provider-identifier",
+#     on_authorization_url=on_authorization_url,
+#     scope="your-scope",
+#     force_authentication=True,
+#     custom_parameters={"access_type": "offline"},
+#     max_polling_retries=60,
+# )
+
+if response and response.has_oauth_access_token_content():
+    print(f"Access Token: {response.oauth_access_token_content.access_token_value}")
+```
+
+### OAuth 3LO Authorization (atomic mode)
+
+The caller orchestrates the polling logic, which suits scenarios that need custom UI interaction or a custom polling strategy.
+
+```python
+import time
+
+from cloud_idaas.core import IDaaSCredentialProviderFactory
+from cloud_idaas.core.constants import OAuth2Constants
+from cloud_idaas.core.credential import IDaaSCredential
+from cloud_idaas.core.implementation import StaticIDaaSCredentialProvider
+from cloud_idaas.core.provider import IDaaSCredentialProvider, IDaaSTokenExchangeCredentialProvider
+from cloud_idaas.pam_client import IDaaSPamClient, PamClientConstants
+
+# Initialize (automatically loads configuration file)
+IDaaSCredentialProviderFactory.init()
+
+# Obtain a user-auth credential via token exchange
+token_exchange_provider: IDaaSTokenExchangeCredentialProvider = (
+    IDaaSCredentialProviderFactory.get_idaas_token_exchange_credential_provider()
+)
+credential: IDaaSCredential = token_exchange_provider.get_credential(
+    subject_token="your-subject-token",
+    requested_token_type=OAuth2Constants.ACCESS_TOKEN_TYPE_VALUE,
+    subject_token_type=OAuth2Constants.ACCESS_TOKEN_TYPE_VALUE,
+)
+credential_provider: IDaaSCredentialProvider = (
+    StaticIDaaSCredentialProvider.builder().credential(credential).build()
+)
+pam_client: IDaaSPamClient = (
+    IDaaSPamClient.builder().credential_provider(credential_provider).build()
+)
+
+credential_provider_identifier = "your-oauth-3lo-credential-provider-identifier"
+
+# 1. Initiate authorization (user_federation flow)
+response = pam_client.fetch_oauth_authentication_token_v2(
+    credential_provider_identifier=credential_provider_identifier,
+    authorization_flow=PamClientConstants.OAUTH_AUTHORIZATION_FLOW_USER_FEDERATION,
+)
+
+if response.has_oauth_access_token_content():
+    # 2. The token is already available, use it directly
+    print(f"Access Token: {response.oauth_access_token_content.access_token_value}")
+else:
+    # 3. User authorization is required: show the URL and poll the session status
+    session = response.oauth_authorization_session
+    print(f"Please open the following URL in a browser to authorize:\n{session.authorization_url}")
+
+    while True:
+        session_response = pam_client.get_oauth_authorization_session(session.session_uri)
+        status = session_response.session_status
+        print(f"Authorization session status: {status}")
+        if status == PamClientConstants.SESSION_STATUS_COMPLETED:
+            break
+        if status in (
+            PamClientConstants.SESSION_STATUS_FAILED,
+            PamClientConstants.SESSION_STATUS_EXPIRED,
+        ):
+            raise RuntimeError(f"Authorization not completed: {status}")
+        time.sleep(PamClientConstants.DEFAULT_POLLING_INTERVAL_SECONDS)
+
+    # 4. Authorization completed, fetch the token again
+    final = pam_client.fetch_oauth_authentication_token_v2(
+        credential_provider_identifier=credential_provider_identifier,
+        authorization_flow=PamClientConstants.OAUTH_AUTHORIZATION_FLOW_USER_FEDERATION,
+    )
+    print(f"Access Token: {final.oauth_access_token_content.access_token_value}")
 ```
 
 ### Generate JWT Authentication Token
